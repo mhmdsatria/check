@@ -10,9 +10,6 @@
 </head>
 
 <body class="bg-gray-100 min-h-screen">
-
-    <section>
-    </section>
     <x-navbar></x-navbar>
     <main class="" style="background-image: url('{{ asset('storage/bg-scenery.webp') }}'); background-size: contain;">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center py-16">
@@ -42,7 +39,49 @@
         </div>
     </main>
     <x-layout>
-        <x-form-pengajuan></x-form-pengajuan>
+        <div class="text-center text-black py-8 px-4">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">Layanan Terbaik Spintar</h1>
+            <p class="text-gray-600 mb-8">
+                Dapatkan berbagai layanan konsultasi dan informasi yang anda butuhkan<br>
+                dengan mudah dan cepat
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 justify-items-center">
+                <x-card />
+                <x-card />
+                <x-card />
+            </div>
+        </div>
+    </x-layout>
+    <x-layout>
+        <div class="grid grid-cols-2 gap-4">
+            <div class=" bg-white">
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">Mengapa memilih Spintar?</h1>
+                <div >
+                    <div>
+                        <h1 class="text-xl text-gray-800 font-medium">Tanpa Registrasi</h1>
+                        <p>Ajukan konsultasi langsung tanpa ribet membuat akun</p>
+                    </div>
+                    <div>
+                        <h1 class="text-xl text-gray-800 font-medium">responsif dan cepat</h1>
+                        <p>Proses validasi cepat dengan respon yang sigap.</p>
+                    </div>
+                    <div>
+                        <h1 class="text-xl text-gray-800 font-medium">multi platform</h1>
+                        <p>Akses layanan dari perangkat apa saja, kapan saja.</p>
+                    </div>
+                </div>
+            </div>
+            <div class=" bg-white">
+                <div class=" bg-white border border-gray-200">
+                    <img src="{{ asset('storage/C.png') }}" alt="">
+                </div>
+            </div>
+        </div>
+    </x-layout>
+    <x-form-pengajuan :divisis="$divisis"></x-form-pengajuan>
+
+    <x-layout>
+        {{-- <x-form-pengajuan></x-form-pengajuan> --}}
     </x-layout>
     <x-footer></x-footer>
 

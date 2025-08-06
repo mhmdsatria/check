@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Divisi;
 use App\Models\Konsultasi;
+use Illuminate\Http\Request;
 
 class KonsultasiController extends Controller
 {
     public function create()
     {
-        return view('konsultasi');
+    $divisis = Divisi::all();
+    return view('konsultasi', compact('divisis'));
     }
 
     public function store(Request $request)
@@ -23,6 +25,7 @@ class KonsultasiController extends Controller
             'waktu' => 'required',
             'deskripsi' => 'required|string',
             'file' => 'nullable|file|max:2048|mimes:pdf,jpg,jpeg,png,doc,docx',
+            'divisi_id' => 'required|exists:divisis,id',
         ]);
 
         $filePath = null;
@@ -39,6 +42,7 @@ class KonsultasiController extends Controller
             'waktu' => $request->waktu,
             'deskripsi' => $request->deskripsi,
             'file' => $filePath,
+            'divisi_id' => $request->divisi_id,
         ]);
 
         return back()->with('success', 'Konsultasi berhasil dikirim!');

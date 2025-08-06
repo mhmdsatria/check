@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Mail\KonsultasiStatusMail;
+use App\Models\Divisi;
 use App\Models\Konsultasi;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use view;
 
 class AdminController extends Controller
 {
@@ -18,7 +19,14 @@ class AdminController extends Controller
      */
     public function index()
     {
-        return view('admin');
+        $user = Auth::user();
+
+        // ✅ Ambil konsultasi sesuai divisi admin login
+        $konsultasis = Konsultasi::where('divisi_id', $user->divisi_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('admin', compact('konsultasis'));
     }
 
     /**
@@ -26,11 +34,9 @@ class AdminController extends Controller
      */
     public function superAdmin(Request $request)
     {
-        // Filter role user
         $roleFilter = $request->query('role');
         $users = $roleFilter ? User::where('role', $roleFilter)->get() : User::all();
 
-        // Statistik user & konsultasi
         $totalUsers = User::count();
         $roles = User::select('role')->distinct()->pluck('role');
 
@@ -41,7 +47,7 @@ class AdminController extends Controller
 
         $total = $totalKonsultasi > 0 ? $totalKonsultasi : 1;
 
-        // 🔍 Filter Pencarian & Status untuk Riwayat Konsultasi
+        // Filter pencarian
         $search = $request->query('search');
         $status = $request->query('status');
 
@@ -59,10 +65,9 @@ class AdminController extends Controller
             $konsultasiQuery->where('status', $status);
         }
 
-        // Ambil data konsultasi dengan pagination
         $konsultasiTerbaru = $konsultasiQuery->orderBy('created_at', 'desc')->paginate(10);
 
-        // Data untuk Bar Chart
+        // Data untuk chart
         $bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         $jumlahPerBulan = [];
         foreach (range(1, 12) as $i) {
@@ -70,6 +75,10 @@ class AdminController extends Controller
         }
 
         $activePage = $request->query('page', 'dashboard');
+
+        // ✅ Tambahkan ini supaya tidak error
+        $divisis = Divisi::all();
+
         if ($request->ajax()) {
             return view('partials.konsultasi-table', compact('konsultasiTerbaru'))->render();
         }
@@ -87,109 +96,61 @@ class AdminController extends Controller
             'bulan',
             'jumlahPerBulan',
             'total',
-            'activePage'
+            'activePage',
+            'divisis' // ✅ Sudah aman
         ));
     }
 
 
-
     /**
-     * Verifikasi status konsultasi (Diterima/Ditolak)
+     * Verifikasi status konsultasi (Admin Divisi hanya untuk divisinya)
      */
     public function verifikasiKonsultasi($id, Request $request)
     {
-        $status = $request->query('status');
+        $status = $request->input('status'); // ✅ Ambil dari form POST
+
         $konsul = Konsultasi::findOrFail($id);
 
-        // Update status konsultasi
+        if (Auth::user()->role === 'Admin' && $konsul->divisi_id !== Auth::user()->divisi_id) {
+            return redirect()->back()->with('error', 'Anda tidak berhak memverifikasi konsultasi ini!');
+        }
+
         $konsul->status = $status;
         $konsul->save();
 
-        // Kirim email notifikasi
         Mail::to($konsul->email)->send(new KonsultasiStatusMail($konsul, $status));
+        $this->sendWhatsapp($konsul->no_wa, $this->formatWhatsappMessage($konsul, $status));
 
-        // Siapkan pesan WhatsApp sesuai status
-        if ($status === 'diterima') {
-            $message = "Halo {$konsul->nama_lengkap},\n\n" .
-                "Pengajuan konsultasi Anda *DITERIMA*. Berikut detail jadwal konsultasi Anda:\n\n" .
-                "📅 Tanggal: {$konsul->tanggal}\n" .
-                "⏰ Waktu: {$konsul->waktu}\n\n" .
-                "Mohon hadir tepat waktu sesuai jadwal. Jika berhalangan, segera hubungi kami.\n\n" .
-                "Terima kasih telah menggunakan layanan kami.";
-        } elseif ($status === 'ditolak') {
-            $message = "Halo {$konsul->nama_lengkap},\n\n" .
-                "Mohon maaf, pengajuan konsultasi Anda *DITOLAK* untuk saat ini.\n\n" .
-                "📄 Deskripsi: {$konsul->deskripsi}\n\n" .
-                "Silakan ajukan kembali di lain waktu atau hubungi kami jika membutuhkan bantuan lebih lanjut.\n\n" .
-                "Terima kasih.";
-        } else {
-            $message = "Halo {$konsul->nama_lengkap}, status konsultasi Anda telah diubah menjadi: *"
-                . strtoupper($status) . "*.\n\n" .
-                "📄 Deskripsi: {$konsul->deskripsi}\n\n" .
-                "Terima kasih telah menggunakan layanan kami.";
-        }
-
-        // Kirim WhatsApp notifikasi
-        $waResponse = $this->sendWhatsapp($konsul->no_wa, $message);
-
-        // Notifikasi redirect
-        if ($waResponse['success']) {
-            return redirect()->back()->with('success', "Status berhasil diubah dan WhatsApp terkirim!");
-        } else {
-            return redirect()->back()->with('warning', "Status berhasil diubah, tetapi WhatsApp gagal terkirim. Cek log.");
-        }
+        return redirect()->back()->with('success', "Status konsultasi berhasil diubah!");
     }
 
 
-    /**
-     * Fungsi Kirim WhatsApp via API Fonnte
-     */
+    private function formatWhatsappMessage($konsul, $status)
+    {
+        if ($status === 'diterima') {
+            return "Halo {$konsul->nama_lengkap},\n\nPengajuan konsultasi Anda *DITERIMA*.\n📅 {$konsul->tanggal}\n⏰ {$konsul->waktu}\n\nTerima kasih.";
+        } elseif ($status === 'ditolak') {
+            return "Halo {$konsul->nama_lengkap},\n\nMohon maaf, pengajuan konsultasi Anda *DITOLAK*.\n\nTerima kasih.";
+        }
+        return "Halo {$konsul->nama_lengkap},\n\nStatus konsultasi Anda telah diubah menjadi *" . strtoupper($status) . "*.";
+    }
+
     private function sendWhatsapp($no_wa, $message)
     {
         $curl = curl_init();
         curl_setopt_array($curl, [
             CURLOPT_URL => "https://api.fonnte.com/send",
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => "POST",
             CURLOPT_POSTFIELDS => [
                 "target" => $no_wa,
                 "message" => $message,
             ],
-            CURLOPT_HTTPHEADER => [
-                "Authorization: " . env('FONNTE_API_KEY')
-            ],
+            CURLOPT_HTTPHEADER => ["Authorization: " . env('FONNTE_API_KEY')],
         ]);
-
         $response = curl_exec($curl);
-        $err = curl_error($curl);
         curl_close($curl);
-
-        // Logging hasil pengiriman
-        if ($err) {
-            Log::error("Gagal kirim WA ke {$no_wa}. Error: " . $err);
-            return ['success' => false, 'message' => $err];
-        }
-
-        $result = json_decode($response, true);
-        if (!empty($result['status']) && $result['status'] == true) {
-            Log::info("WA terkirim ke {$no_wa}. Response: " . $response);
-            return ['success' => true, 'message' => 'WA berhasil terkirim'];
-        }
-
-        Log::warning("WA gagal ke {$no_wa}. Response: " . $response);
-        return ['success' => false, 'message' => $response];
-    }
-
-    /**
-     * Halaman Admin Divisi
-     */
-    public function admin()
-    {
-        return view('admin');
+        return json_decode($response, true);
     }
 
     /**
@@ -197,11 +158,13 @@ class AdminController extends Controller
      */
     public function addUserForm()
     {
-        return view('super-admin-add-user');
+        $divisis = Divisi::all(); // ✅ Ambil semua divisi dari tabel
+        return view('super-admin-add-user', compact('divisis'));
     }
 
+
     /**
-     * Proses Tambah User
+     * Proses Tambah User (Super Admin)
      */
     public function addUser(Request $request)
     {
@@ -209,8 +172,8 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:superadmin,admin-divisi',
-            'divisi_id' => 'nullable|required_if:role,admin-divisi|exists:divisis,id',
+            'role' => 'required|in:SuperAdmin,Admin',
+            'divisi_id' => 'nullable|required_if:role,Admin|exists:divisis,id',
         ]);
 
         User::create([
@@ -218,9 +181,27 @@ class AdminController extends Controller
             'email' => $request->email,
             'password' => bcrypt($request->password),
             'role' => $request->role,
-            'divisi_id' => $request->role === 'admin-divisi' ? $request->divisi_id : null,
+            'divisi_id' => $request->role === 'Admin' ? $request->divisi_id : null,
         ]);
 
         return redirect()->back()->with('success', 'User berhasil ditambahkan!');
+    }
+    public function listDivisi()
+    {
+        $divisis = Divisi::all();
+        return view('super-admin-divisi', compact('divisis'));
+    }
+
+    public function storeDivisi(Request $request)
+    {
+        $request->validate([
+            'nama_divisi' => 'required|string|max:255'
+        ]);
+
+        Divisi::create([
+            'nama_divisi' => $request->nama_divisi
+        ]);
+
+        return redirect()->route('super-admin.divisi')->with('success', 'Divisi berhasil ditambahkan!');
     }
 }

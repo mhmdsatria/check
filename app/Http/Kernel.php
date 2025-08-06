@@ -23,9 +23,7 @@ class Kernel extends HttpKernel
      * @var array<int, class-string|string>
      */
     protected $middleware = [
-        TrustProxies::class,
         PreventRequestsDuringMaintenance::class,
-        TrimStrings::class,
     ];
 
     /**
@@ -39,7 +37,6 @@ class Kernel extends HttpKernel
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
 
@@ -56,9 +53,10 @@ class Kernel extends HttpKernel
      * @var array<string, class-string|string>
      */
     protected $middlewareAliases = [
-        'auth' => Authenticate::class,
-        'guest' => RedirectIfAuthenticated::class,
+        'auth' => \App\Http\Middleware\Authenticate::class,
+        'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
         'role' => \App\Http\Middleware\RoleMiddleware::class,
+        'superadmin.auth' => \App\Http\Middleware\SuperAdminAuth::class,
+        'admin.auth' => \App\Http\Middleware\AdminAuth::class,
     ];
-
 }

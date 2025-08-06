@@ -18,6 +18,12 @@ class Konsultasi extends Model
         'waktu',
         'deskripsi',
         'file',
+        'status',
+        'divisi_id', // ✅ tambahkan divisi_id
     ];
-}
 
+    public function divisi()
+    {
+        return $this->belongsTo(Divisi::class);
+    }
+}

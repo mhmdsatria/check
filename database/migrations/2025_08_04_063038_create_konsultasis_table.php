@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->text('deskripsi');
             $table->string('file')->nullable();
             $table->enum('status', ['pending', 'diterima', 'ditolak'])->default('pending');
+            $table->foreignId('divisi_id')->constrained('divisis')->onDelete('cascade'); // ✅ Tambahkan relasi ke divisi
             $table->timestamps();
         });
     }

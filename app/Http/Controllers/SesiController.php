@@ -9,66 +9,98 @@ use Illuminate\Support\Facades\Hash;
 
 class SesiController extends Controller
 {
-    function index()
+    /**
+     * Halaman Login Umum
+     */
+    public function index(Request $request)
     {
-        return view('login');
+        if ($request->is('login/superadmin')) {
+            return view('login-superadmin'); // ✅ view khusus superadmin
+        } elseif ($request->is('login/admin')) {
+            return view('login-admin'); // ✅ view khusus admin divisi
+        }
+        return redirect()->route('login.superadmin'); // default
     }
 
-    function login(Request $request)
+
+    /**
+     * Login khusus Super Admin (gunakan guard superadmin)
+     */
+    public function loginSuperAdmin(Request $request)
     {
         $request->validate([
-            'email'=>'required|email',
-            'password'=>'required'
-        ],[
-            'email.required'=>'Email wajib diisi',
-            'email.email'=>'Format email tidak valid',
-            'password.required'=>'Password wajib diisi',
+            'email' => 'required|email',
+            'password' => 'required'
         ]);
 
-        // Coba login
         if (Auth::attempt($request->only('email', 'password'))) {
-            // Ambil user yang sedang login
             $user = Auth::user();
-
-            // Cek role user
-            if ($user->role == 'SuperAdmin') {
-                return redirect()->intended('admin/super-admin');
-            } elseif ($user->role == 'Admin') {
-                return redirect()->intended('admin/admin');
-            } else {
-                return redirect()->intended('admin'); // default jika role lain
+            if ($user->role !== 'SuperAdmin') {
+                Auth::logout();
+                return back()->withErrors(['email' => 'Akun ini bukan Super Admin!']);
             }
+            return redirect()->route('super-admin.index'); // ✅ Langsung ke dashboard superadmin
         }
-
-        // Jika login gagal
-        return back()->withErrors(['email' => 'Email atau password salah!'])->withInput();
+        return back()->withErrors(['email' => 'Email atau password salah!']);
     }
 
-    function logout()
+    public function loginAdmin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
+
+        if (Auth::attempt($request->only('email', 'password'))) {
+            $user = Auth::user();
+            if ($user->role !== 'Admin') {
+                Auth::logout();
+                return back()->withErrors(['email' => 'Akun ini bukan Admin Divisi!']);
+            }
+            return redirect()->route('admin.index'); // ✅ Langsung ke dashboard admin
+        }
+        return back()->withErrors(['email' => 'Email atau password salah!']);
+    }
+
+
+
+
+    /**
+     * Logout Super Admin
+     */
+    public function logoutSuperAdmin()
     {
         Auth::logout();
-        return redirect('/');
+        return redirect()->route('login.superadmin');
     }
 
-    function registerForm()
+    /**
+     * Logout Admin Divisi
+     */
+    public function logoutAdmin()
+    {
+        Auth::logout();
+        return redirect()->route('login.admin');
+    }
+
+    /**
+     * Form Registrasi (opsional)
+     */
+    public function registerForm()
     {
         return view('register');
     }
 
-    function register(Request $request)
+    /**
+     * Proses Registrasi (opsional)
+     */
+    public function register(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6|confirmed',
             'role' => 'required'
-        ],[
-            'name.required' => 'Nama wajib diisi',
-            'email.required' => 'Email wajib diisi',
-            'email.unique' => 'Email sudah terdaftar',
-            'password.required' => 'Password wajib diisi',
-            'password.confirmed' => 'Konfirmasi password tidak cocok',
-            'role.required' => 'Role wajib dipilih'
         ]);
 
         User::create([
@@ -78,6 +110,6 @@ class SesiController extends Controller
             'role' => $request->role
         ]);
 
-        return redirect('/')->with('success', 'Akun berhasil dibuat! Silakan login.');
+        return redirect()->route('login')->with('success', 'Akun berhasil dibuat! Silakan login.');
     }
 }
