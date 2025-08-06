@@ -97,9 +97,12 @@
 
         {{-- Tombol Logout --}}
         <div class="mt-6">
-            <a href="/logout" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">
-                Logout
-            </a>
+            <form method="POST" action="{{ route('logout') }}" class="inline">
+                @csrf
+                <button type="submit" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">
+                    Logout
+                </button>
+            </form>
         </div>
     </div>
 </body>

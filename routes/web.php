@@ -21,7 +21,7 @@ Route::get('/', function () {
             return redirect()->route('admin.index');
         }
     }
-    return redirect()->route('login.superadmin');
+    return view('welcome'); // atau redirect ke halaman publik
 });
 
 /*
@@ -38,8 +38,7 @@ Route::get('/login/admin', [SesiController::class, 'index'])->name('login.admin'
 Route::post('/login/admin', [SesiController::class, 'loginAdmin'])->name('post.login.admin');
 
 // Logout per role
-Route::get('/logout/superadmin', [SesiController::class, 'logoutSuperAdmin'])->name('logout.superadmin');
-Route::get('/logout/admin', [SesiController::class, 'logoutAdmin'])->name('logout.admin');
+Route::post('/logout', [SesiController::class, 'logout'])->name('logout');
 
 /*
 |--------------------------------------------------------------------------
@@ -59,9 +58,9 @@ Route::middleware('superadmin.auth')->prefix('admin/super-admin')->group(functio
 | DASHBOARD ADMIN DIVISI
 |--------------------------------------------------------------------------
 */
-Route::middleware('admin.auth')->prefix('admin/admin')->group(function () {
+Route::middleware('admin.auth')->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
-    Route::get('/verifikasi/{id}', [AdminController::class, 'verifikasiKonsultasi'])->name('admin.verifikasi');
+    Route::post('/konsultasi/{id}/verifikasi', [AdminController::class, 'verifikasiKonsultasi'])->name('konsultasi.verifikasi');
 });
 
 /*

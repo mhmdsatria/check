@@ -39,6 +39,7 @@ class SesiController extends Controller
                 Auth::logout();
                 return back()->withErrors(['email' => 'Akun ini bukan Super Admin!']);
             }
+            $request->session()->regenerate();
             return redirect()->route('super-admin.index'); // ✅ Langsung ke dashboard superadmin
         }
         return back()->withErrors(['email' => 'Email atau password salah!']);
@@ -57,6 +58,7 @@ class SesiController extends Controller
                 Auth::logout();
                 return back()->withErrors(['email' => 'Akun ini bukan Admin Divisi!']);
             }
+            $request->session()->regenerate();
             return redirect()->route('admin.index'); // ✅ Langsung ke dashboard admin
         }
         return back()->withErrors(['email' => 'Email atau password salah!']);
@@ -66,21 +68,15 @@ class SesiController extends Controller
 
 
     /**
-     * Logout Super Admin
+     * Logout Universal
      */
-    public function logoutSuperAdmin()
+    public function logout(Request $request)
     {
         Auth::logout();
-        return redirect()->route('login.superadmin');
-    }
-
-    /**
-     * Logout Admin Divisi
-     */
-    public function logoutAdmin()
-    {
-        Auth::logout();
-        return redirect()->route('login.admin');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
+        return redirect()->route('login.superadmin')->with('success', 'Berhasil logout');
     }
 
     /**
